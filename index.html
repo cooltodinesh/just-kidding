@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Trace the Alphabet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="description" content="Finger-tracing practice for A-Z and a-z with stroke order, direction arrows and instant out-of-line feedback." />
+<meta name="theme-color" content="#6c5ce7" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Trace ABC" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div id="flash" aria-hidden="true"></div>
+
+<header id="topbar">
+  <button id="btnLetters" class="icon-btn" aria-label="Choose a letter">🔤</button>
+
+  <div class="title">
+    <div id="letterWord">A is for Apple 🍎</div>
+    <div id="hint" class="hint">Put your finger on the green dot</div>
+  </div>
+
+  <div id="pips" class="pips" aria-label="Copies finished on this page"></div>
+  <div id="stars" class="stars" aria-label="Stars earned"></div>
+  <button id="btnSettings" class="icon-btn" aria-label="Settings">⚙️</button>
+</header>
+
+<main id="stage">
+  <canvas id="board"></canvas>
+  <div id="celebrate" class="celebrate" aria-hidden="true"><span></span></div>
+</main>
+
+<footer id="controls">
+  <button id="btnPrev" class="ctl" aria-label="Previous letter">◀</button>
+  <button id="btnWatch" class="ctl wide">👀 <span>Watch</span></button>
+  <button id="btnReset" class="ctl wide">↺ <span>Again</span></button>
+  <button id="btnSay" class="ctl" aria-label="Say the letter">🔊</button>
+  <button id="btnNext" class="ctl" aria-label="Next letter">▶</button>
+</footer>
+
+<!-- letter picker -->
+<div id="pickerSheet" class="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <div class="tabs">
+        <button class="tab is-on" data-case="upper">A B C</button>
+        <button class="tab" data-case="lower">a b c</button>
+      </div>
+      <button class="close" data-close="pickerSheet" aria-label="Close">✕</button>
+    </div>
+    <div id="letterGrid" class="grid"></div>
+  </div>
+</div>
+
+<!-- settings -->
+<div id="settingsSheet" class="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>Settings</h2>
+      <button class="close" data-close="settingsSheet" aria-label="Close">✕</button>
+    </div>
+
+    <div class="row">
+      <span>How wide is the road?</span>
+      <div class="seg" id="segDifficulty">
+        <button data-diff="easy">Easy</button>
+        <button data-diff="normal" class="is-on">Normal</button>
+        <button data-diff="strict">Tricky</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <span>Copies on each page</span>
+      <div class="seg" id="segPerPage">
+        <button data-per="2">2</button>
+        <button data-per="4">4</button>
+        <button data-per="6" class="is-on">6</button>
+        <button data-per="8">8</button>
+      </div>
+    </div>
+
+    <label class="row"><span>Sounds</span><input type="checkbox" id="optSound" checked /></label>
+    <label class="row"><span>Vibration / haptics</span><input type="checkbox" id="optVibrate" checked /></label>
+    <label class="row"><span>Voice</span><input type="checkbox" id="optSpeech" checked /></label>
+    <label class="row"><span>Direction arrows</span><input type="checkbox" id="optArrows" checked /></label>
+    <label class="row"><span>Show me first</span><input type="checkbox" id="optAutoDemo" checked /></label>
+    <label class="row"><span>Go to next letter automatically</span><input type="checkbox" id="optAutoNext" checked /></label>
+
+    <p id="vibeNote" class="note"></p>
+    <button id="btnResetProgress" class="danger">Reset all stars</button>
+    <p class="note">Tip: on iPad tap <strong>Share → Add to Home Screen</strong> to run it full screen with no browser bars.</p>
+  </div>
+</div>
+
+<script src="js/letters.js"></script>
+<script src="js/feedback.js"></script>
+<script src="js/tracer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
