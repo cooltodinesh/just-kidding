@@ -14,16 +14,16 @@ a mouse or Apple Pencil.
   on glows, finished ones get a green ✓, and the next letter only loads when the
   whole page is done.
 - **Correct stroke order and direction** — each letter is split into numbered
-  strokes. A green ① dot shows where to start and arrows show which way to go.
-  The next stroke only unlocks when the current one is finished.
+  strokes. On guided copies, a green ① dot shows where to start and arrows show
+  which way to go. The next stroke only unlocks when the current one is finished.
 - **Natural, continuous strokes** — the pen only lifts where it really would.
   `d` is one stroke: round the bowl, up the stem and back down without lifting.
   Same for `a b g h m n p q r u` and uppercase `K`. Only `f i j k t x y`,
   digit `4` and the multi-part capitals need a genuine lift.
 - **Half guided, half from memory** — on every page the first half of the copies
   show the start dot, the arrows and the dashed centre line. The rest show only
-  the plain road, so the child recalls the shape themselves. Miss the start on a
-  blank copy and the guides flash back for a moment.
+  the plain road: no start circle or arrows, even after a missed start. The
+  child figures out where to begin while tracing the same checked stroke path.
 - **"Watch" demo** — a yellow dot draws the letter first, one stroke at a time.
 - **Stay-on-the-road feedback** — the letter is drawn as a wide grey "road".
   While the finger stays on it, coloured ink follows the path. The moment the

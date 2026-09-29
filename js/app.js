@@ -203,10 +203,8 @@
         }),
         active: 0,
         done: false,
-        /* First half is guided (dot + arrows); the rest is a blank road so the
-         * child recalls the shape on their own. */
-        guided: i < guidedCount,
-        revealUntil: 0
+        /* First half is guided; the rest has no start or direction cues. */
+        guided: i < guidedCount
       });
     }
     state.focus = 0;
@@ -318,9 +316,9 @@
     var run = slot.runs[slot.active];
     var which = slot.runs.length > 1 ? ' (line ' + (slot.active + 1) + ' of ' + slot.runs.length + ')' : '';
     if (!run) return;
-    if (run.isDot) setHint('Tap the little dot' + which + tail);
+    if (!slot.guided) setHint('Your turn — find where to start!' + which + tail);
+    else if (run.isDot) setHint('Tap the little dot' + which + tail);
     else if (run.index > 0) setHint('Carry on from the blue dot' + which + tail);
-    else if (!slot.guided) setHint('No arrows here — you try it!' + which + tail);
     else setHint('Start on the green dot, follow the arrows' + which + tail);
   }
 
@@ -459,21 +457,6 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(slot.active + 1), target.x, target.y + 0.4);
-  }
-
-  /* A blank copy: no arrows, no numbered dot. Just a faint ring so a small
-   * child still knows which end to begin at. */
-  function drawBlankStart(slot, now) {
-    var run = slot.runs[slot.active];
-    if (!run) return;
-    var target = run.index > 0 ? run.resumePoint() : run.startPoint();
-    var tol = tolerance();
-    ctx.beginPath();
-    ctx.arc(target.x, target.y, tol * (0.46 + Math.sin(now / 300) * 0.06), 0, Math.PI * 2);
-    ctx.strokeStyle = run.index > 0 ? 'rgba(9,132,227,0.40)' : 'rgba(22,178,107,0.40)';
-    ctx.lineWidth = 1.8;
-    ctx.setLineDash([]);
-    ctx.stroke();
   }
 
   /* A quiet start hint on the other unfinished copies. */
@@ -630,10 +613,9 @@
       ctx.scale(view.scale, view.scale);
 
       drawGuides();
-      var showGuides = slot.guided || slot.revealUntil > now;
       var k;
       for (k = 0; k < slot.runs.length; k++) {
-        drawTrack(slot.runs[k], k === slot.active, i === state.focus, showGuides);
+        drawTrack(slot.runs[k], k === slot.active, i === state.focus, slot.guided);
       }
       for (k = 0; k < slot.runs.length; k++) {
         drawInk(slot.runs[k], k, inkProgress(i, k));
@@ -642,11 +624,9 @@
         drawTick();
       } else if (state.demo) {
         /* nothing: the demo hand is the guide */
-      } else if (showGuides) {
+      } else if (slot.guided) {
         if (i === state.focus) drawMarkers(slot, now);
         else drawIdleStart(slot);
-      } else if (i === state.focus) {
-        drawBlankStart(slot, now);
       }
       drawDemoHand(i);
       drawErrors(i, now);
@@ -899,14 +879,14 @@
       if (run.isDot) {
         if (run.push(h.x, h.y) === 'done') onStrokeDone(h.slot);
       } else {
-        setHint('Keep going, follow the arrows');
+        setHint(slot.guided ? 'Keep going, follow the arrows' : 'Keep going on the road');
       }
     } else {
       Feedback.wrongStart();
       state.errors.push({ slot: h.slot, x: h.x, y: h.y, t: performance.now() });
-      /* Missed the start on a blank copy? Flash the guides back on briefly. */
-      if (!slot.guided) slot.revealUntil = performance.now() + 1800;
-      setHint(run.isDot ? 'Tap the little dot!' : 'Start on the green dot ' + (slot.active + 1), 'bad');
+      setHint(slot.guided
+        ? (run.isDot ? 'Tap the little dot!' : 'Start on the green dot ' + (slot.active + 1))
+        : 'Try another starting point', 'bad');
     }
   }
 
