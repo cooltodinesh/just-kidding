@@ -6,7 +6,7 @@ var window = this;
 load('js/letters.js');
 
 var out = {};
-['upper', 'lower'].forEach(function (k) {
+['upper', 'lower', 'digits'].forEach(function (k) {
   LETTERS[k].forEach(function (l) {
     out[k[0] + ':' + l.id] = l.strokes.map(function (s) {
       return s.dot ? 'DOT ' + s.x + ' ' + s.y : s.d;

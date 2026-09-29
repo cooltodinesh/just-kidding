@@ -39,10 +39,43 @@
     arrows: true,
     autoDemo: true,
     autoNext: true,
+    dark: false,
+    letterScale: 1,
     letterCase: 'upper',
     lastIndex: 0
   });
   var progress = load('progress', {});
+  var marks = load('marks', { total: 0 });
+
+  var THEMES = {
+    light: {
+      guideFaint: '#cfdae6', guideMid: '#b9cbe0', guideBase: '#8fa9c4',
+      trackOn: '#ded5fb', trackOff: '#eeeaf9',
+      dotOn: '#ddd4fb', dotOff: '#ece8f8',
+      dash: 'rgba(255,255,255,0.95)',
+      chrome: 'rgba(47,53,66,0.08)', num: 'rgba(47,53,66,0.22)',
+      finger: 'rgba(255,255,255,0.75)'
+    },
+    dark: {
+      guideFaint: '#3d4a5c', guideMid: '#4a5c72', guideBase: '#7d94ad',
+      trackOn: '#3f3a68', trackOff: '#2c2a44',
+      dotOn: '#3f3a68', dotOff: '#2c2a44',
+      dash: 'rgba(255,255,255,0.32)',
+      chrome: 'rgba(255,255,255,0.10)', num: 'rgba(255,255,255,0.26)',
+      finger: 'rgba(255,255,255,0.32)'
+    }
+  };
+  function theme() {
+    return settings.dark ? THEMES.dark : THEMES.light;
+  }
+
+  var SCALE_MIN = 0.55;
+  var SCALE_MAX = 1.2;
+  function letterScale() {
+    var s = Number(settings.letterScale);
+    if (!isFinite(s) || !s) s = 1;
+    return Math.max(SCALE_MIN, Math.min(SCALE_MAX, s));
+  }
 
   /* ------------------------------------------------ state */
 
@@ -63,7 +96,7 @@
   var board = $('board');
   var stage = $('stage');
   var ctx = board.getContext('2d');
-  var view = { scale: 1, dpr: 1, w: 0, h: 0, cols: 1, rows: 1, cw: 0, ch: 0, cells: [] };
+  var view = { scale: 1, sizeFactor: 1, capped: false, dpr: 1, w: 0, h: 0, cols: 1, rows: 1, cw: 0, ch: 0, cells: [] };
   var pathCache = {};
   var interacted = false;
   var timers = { hint: null, autoNext: null, praise: null };
@@ -113,7 +146,13 @@
 
     view.cols = best.cols;
     view.rows = best.rows;
-    view.scale = best.scale;
+    /* Cell geometry stays fixed so the page layout never shifts; only the
+     * glyph inside each cell grows or shrinks. Never let it spill past the
+     * cell edge, or a finger near the border would be read as the next copy. */
+    var fitCap = Math.min(best.cw / BOX.w, best.ch / BOX.h) / best.scale;
+    view.sizeFactor = Math.min(letterScale(), fitCap);
+    view.capped = view.sizeFactor < letterScale() - 0.001;
+    view.scale = best.scale * view.sizeFactor;
     view.cw = best.cw;
     view.ch = best.ch;
     view.cells = [];
@@ -123,8 +162,8 @@
       view.cells.push({
         cx: c * best.cw,
         cy: r * best.ch,
-        ox: c * best.cw + (best.cw - BOX.w * best.scale) / 2,
-        oy: r * best.ch + (best.ch - BOX.h * best.scale) / 2
+        ox: c * best.cw + (best.cw - BOX.w * view.scale) / 2,
+        oy: r * best.ch + (best.ch - BOX.h * view.scale) / 2
       });
     }
   }
@@ -149,12 +188,13 @@
   /* ------------------------------------------------ letters and slots */
 
   function list() {
-    return LETTERS[settings.letterCase];
+    return LETTERS[settings.letterCase] || LETTERS.upper;
   }
 
   function makeSlots() {
     var tol = tolerance();
     var n = perPage();
+    var guidedCount = Math.ceil(n / 2);
     state.slots = [];
     for (var i = 0; i < n; i++) {
       state.slots.push({
@@ -162,7 +202,11 @@
           return new Tracer.StrokeRun(st, { tolerance: tol });
         }),
         active: 0,
-        done: false
+        done: false,
+        /* First half is guided (dot + arrows); the rest is a blank road so the
+         * child recalls the shape on their own. */
+        guided: i < guidedCount,
+        revealUntil: 0
       });
     }
     state.focus = 0;
@@ -171,6 +215,7 @@
 
   function clearTransient() {
     releasePointer();
+    Feedback.stopSpeech();
     state.lastPt = null;
     state.errors = [];
     state.particles = [];
@@ -195,12 +240,25 @@
     if (settings.autoDemo && !opts.noDemo) startDemo();
     else defaultHint();
 
-    if (!opts.silent && interacted) Feedback.say(spoken(state.letter));
+    if (!opts.silent && interacted) Feedback.sayParts(spokenParts(state.letter), 750);
   }
 
-  function spoken(letter) {
+  /* Two separate phrases with a pause, so "Small b" does not run into
+   * "b is for ball". */
+  var COUNT_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+
+  function spokenParts(letter) {
     var name = letter.char.toUpperCase();
-    return (letter.upper ? 'Big ' : 'Small ') + name + '. ' + name + ' is for ' + letter.word + '.';
+    if (letter.kind === 'digit') {
+      var n = Number(letter.char);
+      if (!n) return ['Number zero.', 'Zero means none at all.'];
+      return ['Number ' + letter.word.toLowerCase() + '.',
+        'Count with me. ' + COUNT_WORDS.slice(0, n).join(', ') + '.'];
+    }
+    return [
+      (letter.upper ? 'Big ' : 'Small ') + name + '.',
+      name + ' is for ' + letter.word + '.'
+    ];
   }
 
   function stars(id) {
@@ -224,10 +282,12 @@
 
   function updateHeader() {
     var l = state.letter;
-    $('letterWord').textContent =
-      l.char + '  ·  ' + l.char.toUpperCase() + ' is for ' + l.word + ' ' + l.emoji;
+    $('letterWord').textContent = l.kind === 'digit'
+      ? l.char + '  ·  ' + l.word + ' ' + l.emoji
+      : l.char + '  ·  ' + l.char.toUpperCase() + ' is for ' + l.word + ' ' + l.emoji;
     var n = stars(l.id);
     $('stars').textContent = '★★★'.slice(0, n) + '☆☆☆'.slice(0, 3 - n);
+    $('marks').textContent = '🏅 ' + (marks.total || 0);
     var pips = '';
     for (var i = 0; i < state.slots.length; i++) pips += state.slots[i].done ? '●' : '○';
     $('pips').textContent = pips;
@@ -260,6 +320,7 @@
     if (!run) return;
     if (run.isDot) setHint('Tap the little dot' + which + tail);
     else if (run.index > 0) setHint('Carry on from the blue dot' + which + tail);
+    else if (!slot.guided) setHint('No arrows here — you try it!' + which + tail);
     else setHint('Start on the green dot, follow the arrows' + which + tail);
   }
 
@@ -283,22 +344,24 @@
   }
 
   function drawGuides() {
+    var th = theme();
     ctx.lineCap = 'butt';
     ctx.lineWidth = 0.7;
-    ctx.strokeStyle = '#cfdae6';
+    ctx.strokeStyle = th.guideFaint;
     ctx.setLineDash([3, 4]);
     line(2, G.cap, BOX.w - 2, G.cap);
     line(2, G.desc, BOX.w - 2, G.desc);
     ctx.setLineDash([4, 5]);
-    ctx.strokeStyle = '#b9cbe0';
+    ctx.strokeStyle = th.guideMid;
     line(2, G.mid, BOX.w - 2, G.mid);
     ctx.setLineDash([]);
     ctx.lineWidth = 1.3;
-    ctx.strokeStyle = '#8fa9c4';
+    ctx.strokeStyle = th.guideBase;
     line(2, G.base, BOX.w - 2, G.base);
   }
 
-  function drawTrack(run, isActiveStroke, focused) {
+  function drawTrack(run, isActiveStroke, focused, guided) {
+    var th = theme();
     var w = tolerance() * 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -306,15 +369,18 @@
     if (run.isDot) {
       ctx.beginPath();
       ctx.arc(run.pts[0].x, run.pts[0].y, w * 0.42, 0, Math.PI * 2);
-      ctx.fillStyle = focused && isActiveStroke ? '#ddd4fb' : '#ece8f8';
+      ctx.fillStyle = focused && isActiveStroke ? th.dotOn : th.dotOff;
       ctx.fill();
       return;
     }
-    ctx.strokeStyle = focused && isActiveStroke ? '#ded5fb' : '#eeeaf9';
+    ctx.strokeStyle = focused && isActiveStroke ? th.trackOn : th.trackOff;
     ctx.lineWidth = w;
     ctx.stroke(path2d(run.stroke.d));
 
-    ctx.strokeStyle = '#ffffff';
+    /* The dashed centre line is part of the guiding: blank copies get the
+     * road only, so the child has to remember the path. */
+    if (!guided) return;
+    ctx.strokeStyle = th.dash;
     ctx.lineWidth = 1.1;
     ctx.setLineDash([2.5, 4.5]);
     ctx.stroke(path2d(run.stroke.d));
@@ -395,6 +461,21 @@
     ctx.fillText(String(slot.active + 1), target.x, target.y + 0.4);
   }
 
+  /* A blank copy: no arrows, no numbered dot. Just a faint ring so a small
+   * child still knows which end to begin at. */
+  function drawBlankStart(slot, now) {
+    var run = slot.runs[slot.active];
+    if (!run) return;
+    var target = run.index > 0 ? run.resumePoint() : run.startPoint();
+    var tol = tolerance();
+    ctx.beginPath();
+    ctx.arc(target.x, target.y, tol * (0.46 + Math.sin(now / 300) * 0.06), 0, Math.PI * 2);
+    ctx.strokeStyle = run.index > 0 ? 'rgba(9,132,227,0.40)' : 'rgba(22,178,107,0.40)';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([]);
+    ctx.stroke();
+  }
+
   /* A quiet start hint on the other unfinished copies. */
   function drawIdleStart(slot) {
     var run = slot.runs[slot.active];
@@ -452,7 +533,7 @@
     if (!state.tracing || state.traceSlot !== slotIndex || !state.lastPt) return;
     ctx.beginPath();
     ctx.arc(state.lastPt.x, state.lastPt.y, tolerance() * 0.55, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillStyle = theme().finger;
     ctx.fill();
     ctx.strokeStyle = 'rgba(108,92,231,0.7)';
     ctx.lineWidth = 1.6;
@@ -484,6 +565,7 @@
   }
 
   function drawCellChrome(i, now) {
+    var th = theme();
     var cell = view.cells[i];
     var pad = Math.min(view.cw, view.ch) * 0.03;
     var x = cell.cx + pad;
@@ -508,13 +590,13 @@
     }
 
     roundRect(x, y, w, h, r);
-    ctx.strokeStyle = 'rgba(47,53,66,0.08)';
+    ctx.strokeStyle = th.chrome;
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 6]);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = 'rgba(47,53,66,0.22)';
+    ctx.fillStyle = th.num;
     ctx.font = 'bold ' + Math.max(10, Math.min(w, h) * 0.09) + 'px system-ui, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -548,19 +630,23 @@
       ctx.scale(view.scale, view.scale);
 
       drawGuides();
+      var showGuides = slot.guided || slot.revealUntil > now;
       var k;
       for (k = 0; k < slot.runs.length; k++) {
-        drawTrack(slot.runs[k], k === slot.active, i === state.focus);
+        drawTrack(slot.runs[k], k === slot.active, i === state.focus, showGuides);
       }
       for (k = 0; k < slot.runs.length; k++) {
         drawInk(slot.runs[k], k, inkProgress(i, k));
       }
       if (slot.done) {
         drawTick();
-      } else if (i === state.focus && !state.demo) {
-        drawMarkers(slot, now);
-      } else if (!state.demo) {
-        drawIdleStart(slot);
+      } else if (state.demo) {
+        /* nothing: the demo hand is the guide */
+      } else if (showGuides) {
+        if (i === state.focus) drawMarkers(slot, now);
+        else drawIdleStart(slot);
+      } else if (i === state.focus) {
+        drawBlankStart(slot, now);
       }
       drawDemoHand(i);
       drawErrors(i, now);
@@ -696,12 +782,18 @@
     setHint('That is ' + doneCount() + ' of ' + state.slots.length + '! ' + left + ' to go', 'good');
   }
 
+  function name0(letter) {
+    return (letter.upper ? 'big ' : 'small ') + letter.char.toUpperCase();
+  }
+
   function pageDone() {
     state.done = true;
     releasePointer();
     var letter = state.letter;
     progress[letter.id] = Math.min(3, (progress[letter.id] || 0) + 1);
     save('progress', progress);
+    marks.total = (marks.total || 0) + 1;
+    save('marks', marks);
     updateHeader();
     renderGrid();
 
@@ -709,17 +801,20 @@
       burst(i, BOX.w / 2, BOX.h / 2, 10, ['⭐', '🎉', '✨', '🌈', letter.emoji]);
     }
     Feedback.letterDone();
-    setHint('Whole page done! ' + letter.char.toUpperCase() + ' ' + letter.emoji, 'good');
+    setHint('Whole page done! +1 mark 🏅 · total ' + marks.total, 'good');
 
     var c = $('celebrate');
-    c.querySelector('span').textContent = 'Yay!';
+    c.querySelector('span').textContent = '+1 🏅';
     c.classList.remove('on');
     void c.offsetWidth;
     c.classList.add('on');
 
-    var name = letter.char.toUpperCase();
+    var name = letter.kind === 'digit' ? 'number ' + letter.word.toLowerCase() : name0(letter);
     timers.praise = setTimeout(function () {
-      Feedback.say('Great job! You finished a whole page of ' + name + '.');
+      Feedback.sayParts([
+        'Great job! You finished a whole page of ' + name + '.',
+        'That is ' + marks.total + (marks.total === 1 ? ' mark.' : ' marks.')
+      ], 550);
     }, 550);
 
     if (settings.autoNext) {
@@ -809,6 +904,8 @@
     } else {
       Feedback.wrongStart();
       state.errors.push({ slot: h.slot, x: h.x, y: h.y, t: performance.now() });
+      /* Missed the start on a blank copy? Flash the guides back on briefly. */
+      if (!slot.guided) slot.revealUntil = performance.now() + 1800;
       setHint(run.isDot ? 'Tap the little dot!' : 'Start on the green dot ' + (slot.active + 1), 'bad');
     }
   }
@@ -887,6 +984,14 @@
     $('optArrows').checked = settings.arrows;
     $('optAutoDemo').checked = settings.autoDemo;
     $('optAutoNext').checked = settings.autoNext;
+    $('optDark').checked = !!settings.dark;
+    $('btnSizeReset').textContent = Math.round(view.sizeFactor * 100) + '%';
+    var atMin = letterScale() <= SCALE_MIN + 0.001;
+    var atMax = letterScale() >= SCALE_MAX - 0.001 || view.capped;
+    $('btnSizeDown').disabled = atMin;
+    $('btnSizeUp').disabled = atMax;
+    $('btnSmaller').disabled = atMin;
+    $('btnBigger').disabled = atMax;
     Array.prototype.forEach.call($('segDifficulty').children, function (b) {
       b.classList.toggle('is-on', b.dataset.diff === settings.difficulty);
     });
@@ -899,6 +1004,24 @@
     Feedback.settings.sound = settings.sound;
     Feedback.settings.vibrate = settings.vibrate;
     Feedback.settings.speech = settings.speech;
+  }
+
+  function applyTheme() {
+    document.body.classList.toggle('dark', !!settings.dark);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', settings.dark ? '#171a21' : '#fdf7ee');
+  }
+
+  function bumpSize(delta) {
+    /* Base the step on what is actually on screen, so pressing − after the
+     * size was capped by the cell still makes a visible difference. */
+    var from = delta < 0 ? Math.min(letterScale(), view.sizeFactor || 1) : letterScale();
+    var next = Math.round((from + delta) * 100) / 100;
+    settings.letterScale = Math.max(SCALE_MIN, Math.min(SCALE_MAX, next));
+    save('settings', settings);
+    layout();
+    syncSettingsUI();
+    Feedback.tick();
   }
 
   function vibeNote() {
@@ -918,6 +1041,11 @@
       msg = 'This device has no vibration support, so mistakes use a red flash, a shake and a buzz sound.';
     }
     $('vibeNote').textContent = msg;
+  }
+
+  function relayout() {
+    layout();
+    syncSettingsUI();
   }
 
   function bind() {
@@ -943,8 +1071,21 @@
     $('btnSay').addEventListener('click', function () {
       interacted = true;
       Feedback.unlock();
-      Feedback.say(spoken(state.letter) + ' ' + state.letter.char.toUpperCase() +
-        ' says ' + state.letter.sound + '.');
+      var l = state.letter;
+      var parts = spokenParts(l);
+      if (l.kind !== 'digit') parts.push(l.char.toUpperCase() + ' says ' + l.sound + '.');
+      Feedback.sayParts(parts, 750);
+    });
+
+    $('btnSmaller').addEventListener('click', function () { bumpSize(-0.1); });
+    $('btnBigger').addEventListener('click', function () { bumpSize(0.1); });
+    $('btnSizeDown').addEventListener('click', function () { bumpSize(-0.1); });
+    $('btnSizeUp').addEventListener('click', function () { bumpSize(0.1); });
+    $('btnSizeReset').addEventListener('click', function () {
+      settings.letterScale = 1;
+      save('settings', settings);
+      layout();
+      syncSettingsUI();
     });
 
     $('btnLetters').addEventListener('click', function () {
@@ -1006,12 +1147,14 @@
       ['optSpeech', 'speech'],
       ['optArrows', 'arrows'],
       ['optAutoDemo', 'autoDemo'],
-      ['optAutoNext', 'autoNext']
+      ['optAutoNext', 'autoNext'],
+      ['optDark', 'dark']
     ].forEach(function (pair) {
       $(pair[0]).addEventListener('change', function (e) {
         settings[pair[1]] = e.target.checked;
         save('settings', settings);
         syncSettingsUI();
+        if (pair[1] === 'dark') applyTheme();
         if (pair[1] === 'autoNext' && !e.target.checked) {
           clearTimeout(timers.autoNext);
           timers.autoNext = null;
@@ -1032,14 +1175,23 @@
       renderGrid();
     });
 
-    window.addEventListener('resize', layout);
-    window.addEventListener('orientationchange', function () { setTimeout(layout, 250); });
-    if (window.ResizeObserver) new ResizeObserver(layout).observe(stage);
+    $('btnResetMarks').addEventListener('click', function () {
+      if (!confirm('Clear all marks?')) return;
+      marks = { total: 0 };
+      save('marks', marks);
+      updateHeader();
+    });
+
+    window.addEventListener('resize', relayout);
+    window.addEventListener('orientationchange', function () { setTimeout(relayout, 250); });
+    if (window.ResizeObserver) new ResizeObserver(relayout).observe(stage);
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'ArrowRight') loadLetter(settings.lastIndex + 1);
       if (e.key === 'ArrowLeft') loadLetter(settings.lastIndex - 1);
       if (e.key === 'r' || e.key === 'R') resetPage();
+      if (e.key === '+' || e.key === '=') bumpSize(0.1);
+      if (e.key === '-' || e.key === '_') bumpSize(-0.1);
     });
 
     ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (t) {
@@ -1065,9 +1217,10 @@
 
   function init() {
     Feedback.init();
-    syncSettingsUI();
+    applyTheme();
     bind();
     layout();
+    syncSettingsUI();
     loadLetter(settings.lastIndex, { silent: true });
     requestAnimationFrame(frame);
 

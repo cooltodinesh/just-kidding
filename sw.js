@@ -1,7 +1,7 @@
 /* Offline cache so the app keeps working on the iPad with no wifi.
  * Network-first for app files so an update is picked up as soon as the device
  * is online, with the cache as the offline fallback. */
-var CACHE = 'trace-abc-v2';
+var CACHE = 'trace-abc-v3';
 var ASSETS = [
   './',
   './index.html',

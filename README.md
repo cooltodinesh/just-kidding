@@ -1,6 +1,6 @@
 # Trace the Alphabet ✏️
 
-A finger-tracing alphabet app for young children (A–Z and a–z), built as a plain
+A finger-tracing app for young children (A–Z, a–z and 0–9), built as a plain
 static web app. No build step, no dependencies, no network calls.
 
 It works on iPad, iPhone, Android tablets/phones, touchscreen laptops, and with
@@ -8,7 +8,7 @@ a mouse or Apple Pencil.
 
 ## What it does
 
-- **All 52 letters** — uppercase A–Z and lowercase a–z.
+- **All 62 characters** — uppercase A–Z, lowercase a–z and numbers 0–9.
 - **A worksheet page per letter** — the letter appears **6 times** on the page
   (configurable: 2, 4, 6 or 8). Each copy is traced separately, the one to work
   on glows, finished ones get a green ✓, and the next letter only loads when the
@@ -16,6 +16,14 @@ a mouse or Apple Pencil.
 - **Correct stroke order and direction** — each letter is split into numbered
   strokes. A green ① dot shows where to start and arrows show which way to go.
   The next stroke only unlocks when the current one is finished.
+- **Natural, continuous strokes** — the pen only lifts where it really would.
+  `d` is one stroke: round the bowl, up the stem and back down without lifting.
+  Same for `a b g h m n p q r u` and uppercase `K`. Only `f i j k t x y`,
+  digit `4` and the multi-part capitals need a genuine lift.
+- **Half guided, half from memory** — on every page the first half of the copies
+  show the start dot, the arrows and the dashed centre line. The rest show only
+  the plain road, so the child recalls the shape themselves. Miss the start on a
+  blank copy and the guides flash back for a moment.
 - **"Watch" demo** — a yellow dot draws the letter first, one stroke at a time.
 - **Stay-on-the-road feedback** — the letter is drawn as a wide grey "road".
   While the finger stays on it, coloured ink follows the path. The moment the
@@ -28,8 +36,16 @@ a mouse or Apple Pencil.
   so a 4-year-old never has to start over out of frustration.
 - **No cheating** — you cannot skip ahead, trace backwards, or jump to the end.
 - **Rewards** — chime, confetti and up to ⭐⭐⭐ per letter, saved on the device.
-- **Voice** — says the letter, the example word ("A is for Apple") and the
-  phonic sound.
+- **Marks 🏅** — every completed page is worth one mark, and the running total
+  stays on screen as the child moves from page to page.
+- **Voice** — says the letter, then pauses, then the example word
+  ("Small b." … "b is for ball.") and the phonic sound. Numbers are counted out
+  loud ("Number five." … "Count with me. one, two, three, four, five.").
+- **Letter size** — `A−` / `A+` in the footer (or `-` / `+` on a keyboard) grow
+  and shrink the letter itself. The page layout, the number of copies and the
+  cell positions never move; only the glyph inside each cell changes, and it is
+  always kept inside its own cell.
+- **Dark theme** — Settings → Dark theme, for bedtime practice.
 - **Difficulty** — Easy / Normal / Tricky changes how wide the road is.
 - **Works offline** once installed to the home screen.
 
@@ -92,7 +108,7 @@ an iPhone on iOS 17.4+ with **Settings → Sounds & Haptics → System Haptics**
 ```
 index.html               markup and the settings/letter sheets
 css/styles.css           layout and animations
-js/letters.js            stroke data for all 52 letters (generated from arcs + lines)
+js/letters.js            stroke data for all 62 characters (generated from arcs + lines)
 js/tracer.js             path sampling, progress tracking, on/off-road detection
 js/feedback.js           haptics, sound effects (WebAudio), speech
 js/app.js                canvas rendering, pointer handling, UI, storage
@@ -116,6 +132,7 @@ $JSC tools/test_tracer.js
 $JSC tools/dump_letters.js > /tmp/letters.json
 python3 tools/render_check.py /tmp/letters.json /tmp/upper.png upper
 python3 tools/render_check.py /tmp/letters.json /tmp/lower.png lower
+python3 tools/render_check.py /tmp/letters.json /tmp/digits.png digits
 
 # regenerate the app icons
 python3 tools/make_icons.py

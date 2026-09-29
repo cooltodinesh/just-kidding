@@ -135,18 +135,55 @@
     this.tone({ type: 'sine', from: 900, dur: 0.04, vol: 0.05 });
   };
 
-  Feedback.say = function (text, rate) {
-    if (!this.settings.speech || !global.speechSynthesis) return;
-    try {
-      global.speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(text);
-      u.rate = rate || 0.85;
-      u.pitch = 1.15;
-      u.lang = 'en-US';
-      global.speechSynthesis.speak(u);
-    } catch (e) {
-      /* ignore */
+  Feedback.stopSpeech = function () {
+    clearTimeout(this._speechTimer);
+    clearTimeout(this._speechGuard);
+    this._speechTimer = null;
+    this._speechGuard = null;
+    if (global.speechSynthesis) {
+      try { global.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
     }
+  };
+
+  Feedback.say = function (text, rate) {
+    this.sayParts([text], 0, rate);
+  };
+
+  /* Speak each part in turn, with a real pause between them. Waiting for the
+   * 'end' event keeps the gap correct whatever the phrase length; the guard
+   * timer covers iOS not always firing it. */
+  Feedback.sayParts = function (parts, gapMs, rate) {
+    if (!this.settings.speech || !global.speechSynthesis) return;
+    this.stopSpeech();
+
+    var self = this;
+    var queue = parts.slice();
+    var gap = gapMs == null ? 700 : gapMs;
+
+    function next() {
+      if (!queue.length) return;
+      var text = queue.shift();
+      var advanced = false;
+      function advance() {
+        if (advanced) return;
+        advanced = true;
+        clearTimeout(self._speechGuard);
+        if (queue.length) self._speechTimer = setTimeout(next, gap);
+      }
+      try {
+        var u = new SpeechSynthesisUtterance(text);
+        u.rate = rate || 0.85;
+        u.pitch = 1.15;
+        u.lang = 'en-US';
+        u.onend = advance;
+        u.onerror = advance;
+        global.speechSynthesis.speak(u);
+        self._speechGuard = setTimeout(advance, 1400 + text.length * 90);
+      } catch (e) {
+        advance();
+      }
+    }
+    next();
   };
 
   global.Feedback = Feedback;

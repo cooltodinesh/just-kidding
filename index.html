@@ -28,6 +28,7 @@
   </div>
 
   <div id="pips" class="pips" aria-label="Copies finished on this page"></div>
+  <div id="marks" class="marks" aria-label="Marks earned">🏅 0</div>
   <div id="stars" class="stars" aria-label="Stars earned"></div>
   <button id="btnSettings" class="icon-btn" aria-label="Settings">⚙️</button>
 </header>
@@ -39,8 +40,10 @@
 
 <footer id="controls">
   <button id="btnPrev" class="ctl" aria-label="Previous letter">◀</button>
+  <button id="btnSmaller" class="ctl" aria-label="Make the letter smaller">A−</button>
   <button id="btnWatch" class="ctl wide">👀 <span>Watch</span></button>
   <button id="btnReset" class="ctl wide">↺ <span>Again</span></button>
+  <button id="btnBigger" class="ctl" aria-label="Make the letter bigger">A+</button>
   <button id="btnSay" class="ctl" aria-label="Say the letter">🔊</button>
   <button id="btnNext" class="ctl" aria-label="Next letter">▶</button>
 </footer>
@@ -52,6 +55,7 @@
       <div class="tabs">
         <button class="tab is-on" data-case="upper">A B C</button>
         <button class="tab" data-case="lower">a b c</button>
+        <button class="tab" data-case="digits">1 2 3</button>
       </div>
       <button class="close" data-close="pickerSheet" aria-label="Close">✕</button>
     </div>
@@ -86,6 +90,16 @@
       </div>
     </div>
 
+    <div class="row">
+      <span>Letter size</span>
+      <div class="seg" id="segSize">
+        <button id="btnSizeDown">−</button>
+        <button id="btnSizeReset">100%</button>
+        <button id="btnSizeUp">+</button>
+      </div>
+    </div>
+
+    <label class="row"><span>Dark theme</span><input type="checkbox" id="optDark" /></label>
     <label class="row"><span>Sounds</span><input type="checkbox" id="optSound" checked /></label>
     <label class="row"><span>Vibration / haptics</span><input type="checkbox" id="optVibrate" checked /></label>
     <label class="row"><span>Voice</span><input type="checkbox" id="optSpeech" checked /></label>
@@ -94,7 +108,9 @@
     <label class="row"><span>Go to next letter automatically</span><input type="checkbox" id="optAutoNext" checked /></label>
 
     <p id="vibeNote" class="note"></p>
+    <p class="note">Half the copies on every page show the dot and arrows; the other half are blank so your child can try from memory. Finish a page to earn one 🏅 mark.</p>
     <button id="btnResetProgress" class="danger">Reset all stars</button>
+    <button id="btnResetMarks" class="danger">Reset marks 🏅</button>
     <p class="note">Tip: on iPad tap <strong>Share → Add to Home Screen</strong> to run it full screen with no browser bars.</p>
   </div>
 </div>

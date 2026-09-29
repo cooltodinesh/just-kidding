@@ -126,5 +126,24 @@ check('tap on the dot completes', dot.push(62, 48) === 'done');
 dot.reset();
 check('tap away from the dot is out', dot.push(60, 90) === 'out');
 
+/* --- retracing: down the stem, back up it, then away (b, h, m, n, p, r) --- */
+var retrace = run('M0,0 L0,100 L0,40 L60,40');
+res = 'ok';
+var y;
+for (y = 0; y <= 100 && res !== 'done'; y += 2) res = retrace.push(0, y);
+check('retrace: first pass down the stem stays ok', res === 'ok' && retrace.index > 40);
+for (y = 100; y >= 40 && res !== 'done'; y -= 2) res = retrace.push(0, y);
+check('retrace: coming back up the same stem stays ok', res === 'ok');
+check('retrace: progress kept advancing on the way up', retrace.index > 60);
+for (var xx = 0; xx <= 60 && res !== 'done'; xx += 2) res = retrace.push(xx, 40);
+check('retrace: whole continuous stroke completes', res === 'done' && retrace.done);
+
+/* Lingering at the turn must not count as going off the road. */
+retrace.reset();
+res = 'ok';
+for (y = 0; y <= 100 && res !== 'done'; y += 2) res = retrace.push(0, y);
+check('retrace: hovering at the turning point is not an error',
+  retrace.push(0, 99) !== 'out' && retrace.push(0, 100) !== 'out');
+
 print(failures ? '\n' + failures + ' FAILURE(S)' : '\nall tracer tests passed');
 if (failures) throw new Error('tracer tests failed');

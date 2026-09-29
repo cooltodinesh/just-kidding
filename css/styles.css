@@ -97,6 +97,17 @@ body {
   white-space: nowrap;
 }
 
+.marks {
+  flex: 0 0 auto;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--brand);
+  white-space: nowrap;
+  background: var(--brand-soft);
+  border-radius: 12px;
+  padding: 5px 9px;
+}
+
 .stars {
   flex: 0 0 auto;
   font-size: 20px;
@@ -343,3 +354,31 @@ body {
   #topbar { padding: 4px 10px; }
   #controls { padding: 6px 10px 8px; }
 }
+
+/* ---------------- dark theme ---------------- */
+
+body.dark {
+  --paper: #1f232c;
+  --ink: #e9edf4;
+  --brand: #a79bff;
+  --brand-soft: #2e2a4a;
+  --sheet: #232833;
+  background: linear-gradient(160deg, #171a21 0%, #191d28 55%, #14201c 100%);
+}
+body.dark .icon-btn,
+body.dark .ctl {
+  background: #2b3140;
+  color: var(--ink);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+}
+body.dark .icon-btn { box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45); }
+body.dark .ctl:active { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); }
+body.dark .sheet { background: rgba(0, 0, 0, 0.62); }
+body.dark .tab,
+body.dark .seg button,
+body.dark .close { background: #2b3140; color: var(--ink); }
+body.dark .tab.is-on,
+body.dark .seg button.is-on,
+body.dark .cell.is-on { background: var(--brand); color: #14171d; }
+body.dark .note { color: #97a1b3; }
+body.dark .danger { background: #3a2226; color: #ff8b84; }
